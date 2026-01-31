@@ -357,12 +357,13 @@ namespace SRL::Ponesound
 		 */
 		struct Pcm
 		{
-
+		    // missing:  pcm_parameter_change
+		    
 			/** @brief Load PCM sound effect
 			 * @param file File name
 			 * @param bitDepth Bit depth of the sound effect
 			 * @param sampleRate Sample rate of the sound effect
-			 * @return Sound effect identifier (0xffff on fail)
+			 * @return Sound effect identifier (< 0 on fail)
 			 */
 			static int16_t LoadPcm(const char* fileName, const PCMBitDepth bitDepth, const int32_t sampleRate)
 			{
@@ -421,9 +422,30 @@ namespace SRL::Ponesound
                 }
 			}
 
+			/** @brief Load 8 bit PCM sound effect
+			 * @param file File name
+			 * @param sampleRate Sample rate of the sound effect
+			 * @return Sound effect identifier (< 0 on fail)
+			 */
+			static int16_t LoadPcm8(const char* fileName, const int32_t sampleRate)
+			{
+			    return LoadPcm(fileName, PCMBitDepth::PCM8, sampleRate);
+			}
+			
+			/** @brief Load 16 bit PCM sound effect
+			 * @param file File name
+			 * @param sampleRate Sample rate of the sound effect
+			 * @return Sound effect identifier (< 0 on fail)
+			 */
+			static int16_t LoadPcm16(const char* fileName, const int32_t sampleRate)
+			{
+			    return LoadPcm(fileName, PCMBitDepth::PCM16, sampleRate);
+			}
+			
 			/** @brief Load ADX sound effect
 			 * @param fileName File name
 			 * @return Sound effect identifier
+			 * @return Sound effect identifier (< 0 on fail)
 			 */
 			static int16_t LoadAdx(const char* fileName)
 			{
