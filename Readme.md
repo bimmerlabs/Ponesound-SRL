@@ -8,5 +8,6 @@ Also requires the SMPC module, download that here.
 
 ## Credits
 Original Ponesound driver by Ponut64
+* https://github.com/ponut64/SCSP_poneSound
 
 Thanks to robertoduarte for the starting point & ReyeMe for the advice.
