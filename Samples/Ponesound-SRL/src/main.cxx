@@ -15,8 +15,8 @@ int main()
     Digital port0(0);
     
     SRL::Debug::Print(1,3,  "Loading...");
-    int16_t gameOverPcm8 = Pcm::LoadPcm("GMOVR8.PCM", Sound::PCMBitDepth::PCM8, 15360);
-    int16_t bumpPcm16    = Pcm::LoadPcm("BUMP16.PCM", Sound::PCMBitDepth::PCM16, 15360);
+    int16_t gameOverPcm8 = Pcm::LoadPcm8("GMOVR8.PCM", 15360);
+    int16_t bumpPcm16    = Pcm::LoadPcm16("BUMP16.PCM", 15360);
     int16_t adx4snd      = Pcm::LoadAdx("NBGM.ADX");
     int32_t currentTrack = 2;
     bool playCDDA = false;
