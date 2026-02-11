@@ -53,7 +53,7 @@ int main()
         {
             SRL::Debug::Print(1,6, "Play sample %d ", catSnd[curSample]+1);
             // explicitly specify the playmode and volume
-            Pcm::Play(catSnd[0], PlayMode::Volatile, 7);
+            Pcm::Play(catSnd[curSample], PlayMode::Volatile, 7);
         }
         if (port0.WasPressed(Digital::Button::B))
         {

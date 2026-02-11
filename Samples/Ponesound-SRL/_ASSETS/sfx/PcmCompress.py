@@ -110,6 +110,44 @@ def lzss_compress(data: bytes) -> bytes:
 
     return bytes(out)
 
+# for reference / verification of output
+def lzss_decompress(data: bytes, decompressed_size: int) -> bytes:
+    inp = 0
+    out = bytearray()
+
+    flags = 0
+    mask = 0
+
+    while len(out) < decompressed_size:
+        if mask == 0:
+            flags = data[inp]
+            inp += 1
+            mask = 0x80  # MSB first
+
+        if flags & mask:
+            # literal
+            out.append(data[inp])
+            inp += 1
+        else:
+            # match
+            pair = (data[inp] << 8) | data[inp + 1]
+            inp += 2
+
+            encoded_offset = (pair >> 4) & 0x0FFF
+            length = (pair & 0x000F) + 3
+
+            distance = encoded_offset + 1
+            src = len(out) - distance
+            if src < 0:
+                raise ValueError(f"Invalid offset {offset} at output pos {len(out)}")
+
+            for i in range(length):
+                out.append(out[src + i])
+
+        mask >>= 1
+
+    return bytes(out)
+
 # general file compression (specify extension)
 def compressLzssInFolder(folder: str, write_output: bool = False):
     folder_path = Path(folder)
@@ -190,10 +228,10 @@ def packSndInFolder(assets_folder: str, out_folder: str):
         print(f"Saved: {out_file}")
 
 # process PCM files and save them to the project as .snd:
-PROJECT_ROOT = Path(__file__).resolve().parent.parent  # adjust if needed
-INPUT = PROJECT_ROOT / "_ASSETS" / "sfx"
-OUTPUT = PROJECT_ROOT / "cd" / "data"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+INPUT = PROJECT_ROOT / "sfx"
+OUTPUT = PROJECT_ROOT.parent / "cd" / "data"
 
 if __name__ == "__main__":
      packSndInFolder(INPUT, OUTPUT)
-#    packSndInFolder('M:/Saturn/Development/_02_SaturnRingLib 0.92/Projects/Pixel Poppy Pong SRL/_ASSETS/sfx', 'M:/Saturn/Development/_02_SaturnRingLib 0.92/Projects/Pixel Poppy Pong SRL/cd/data')
+     
