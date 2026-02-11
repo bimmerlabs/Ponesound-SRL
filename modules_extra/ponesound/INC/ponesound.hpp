@@ -1,17 +1,85 @@
 #pragma once
 #include <srl.hpp>
 #include <smpc.hpp>
+#include <decompression.hpp>
 
 using namespace SRL::Math::Types;
+using namespace SRL::Decompression;
 
 namespace SRL::Ponesound
-{    
+{
+    /**
+    * @brief Enum defining PCM bit depth.
+    */
+    enum class BitDepth : int32_t
+    {
+        /** @brief 8-bit
+        */
+        PCM8 = 1,
+
+        /** @brief 16-bit
+        */
+        PCM16 = 0
+    };
+
+    /**
+    * @brief Enum defining ADX data mode.
+    */
+    enum ADXMode : uint32_t
+    {
+        /** @brief 7.68 Data
+        */
+        ADX768 = 0,
+
+        /** @brief 11.52 Data
+        */
+        ADX1152 = 1,
+
+        /** @brief 15.36 Data
+        */
+        ADX1536 = 2,
+
+        /** @brief 23.04 Data
+        */
+        ADX2304 = 3,
+    };
+
+    /**
+    * @brief Enum defining sound play mode.
+    */
+    enum PlayMode : int32_t
+    {
+        /** @brief Sound effect will loop, playback direction will change when playback reaches its end
+        */
+        AlternatingLoop = 3,
+
+        /** @brief Sound effect will play backwards in a loop
+        */
+        ReversLoop = 2,
+
+        /** @brief Sound effect will play normaly in loop
+        */
+        ForwardLoop = 1,
+
+        /** @brief Sound effect will play normaly
+        */
+        Volatile = 0,
+
+        /** @brief Sound effect will play normaly, but when stopped, it wil not stop playing until its end
+        */
+        Protected = -1,
+
+        /** @brief Sound effect will play normaly, but when stopped, it wil not stop playing until its end
+        */
+        Semi = -2,
+    };
+		
 	/**
 	 * @brief Class for managing sound operations.
 	 */ 
 	class Sound final
 	{
-	private:
+	private:        
         /**
          * @brief Masking function for extracting the least significant N bits of a value.
          * @tparam N Number of bits to extract.
@@ -53,6 +121,28 @@ namespace SRL::Ponesound
 			return (a / CalculateGCD(a, b)) * b;
 		}
 
+        /** @brief Struct representing packed Sound file header (.snd)
+         */
+        struct PcmHeader
+        {
+            /** @brief Bit Depth (PCM8 or PCM16)
+             */
+            uint16_t bitDepth;
+
+            /** @brief Sample Rate (ie 15360)
+             */
+            uint16_t sampleRate;
+            
+            /** @brief Compressed PCM size
+             */
+            uint32_t compressedSize;
+            
+            /** @brief Original PCM Size
+             */
+            uint32_t originalSize;
+            
+        };
+        
 		/**
 		 * @brief Struct representing PCM sound parameters.
 		 */
@@ -228,7 +318,7 @@ namespace SRL::Ponesound
 			m68kCommands.start = 0xFFFF;
 			scspWorkAddr = scspWorkStart;
 			volatile int32_t i = reinterpret_cast<int32_t>(scspWorkAddr);
-            // is this really needed?
+            // appears to be for ADX playback
 			while (i) { i = i - 1; }
 			numberOfPCMs = 0;
 		}
@@ -247,79 +337,41 @@ namespace SRL::Ponesound
 			int32_t fnsr = ((((sampleRate)-(shiftr)) << 10) / (shiftr));
 			return ((int32_t)((ExtractLeastSignificantBits<4>(-(octr)) << 11) | ExtractLeastSignificantBits<10>(fnsr)));
 		}
+		        /** @brief Register sample and update SCSP work address
+        */
+        static int16_t RegisterPcm(int32_t fileSize, BitDepth bitDepth, int32_t sampleRate)
+        {
+            m68kCommands.pcmCtrl[numberOfPCMs].hiAddrBits = (uint16_t)((uint32_t)scspWorkAddr >> 16);
+            m68kCommands.pcmCtrl[numberOfPCMs].loAddrBits = (uint16_t)((uint32_t)scspWorkAddr & 0xFFFF);
+            m68kCommands.pcmCtrl[numberOfPCMs].pitchWord    = ConvertBitrateToPitchWord(sampleRate);
+
+            if (bitDepth == BitDepth::PCM16)
+            {
+                m68kCommands.pcmCtrl[numberOfPCMs].bytesPerBlank = CalculateBytesPerBlank(sampleRate, false, PCM::SYS_REGION);
+                m68kCommands.pcmCtrl[numberOfPCMs].playSize = (fileSize >> 1);
+                m68kCommands.pcmCtrl[numberOfPCMs].bitDepth = PCM::TYPE_16BIT;
+            }
+            else if (bitDepth == BitDepth::PCM8) {
+                m68kCommands.pcmCtrl[numberOfPCMs].bytesPerBlank = CalculateBytesPerBlank(sampleRate, true, PCM::SYS_REGION);
+                m68kCommands.pcmCtrl[numberOfPCMs].playSize = (fileSize);
+                m68kCommands.pcmCtrl[numberOfPCMs].bitDepth = PCM::TYPE_8BIT;
+            }
+
+            m68kCommands.pcmCtrl[numberOfPCMs].loopType = 0;
+            m68kCommands.pcmCtrl[numberOfPCMs].volume = 7;
+
+            numberOfPCMs++;
+            scspWorkAddr = (uint32_t*)((uint32_t)scspWorkAddr + fileSize);
+
+            return (numberOfPCMs - 1);
+        }
 
 	public:
-		/**
-		 * @brief Enum defining PCM bit depth.
-		 */
-		enum class PCMBitDepth : int32_t
-		{
-			/** @brief 8-bit
-			 */
-			PCM8 = 1,
-
-			/** @brief 16-bit
-			 */
-			PCM16 = 0
-		};
-
-		/**
-		 * @brief Enum defining ADX data mode.
-		 */
-		enum ADXMode : uint32_t
-		{
-			/** @brief 7.68 Data
-			 */
-			ADX768 = 0,
-
-			/** @brief 11.52 Data
-			 */
-			ADX1152 = 1,
-
-			/** @brief 15.36 Data
-			 */
-			ADX1536 = 2,
-
-			/** @brief 23.04 Data
-			 */
-			ADX2304 = 3,
-		};
-
-		/**
-		 * @brief Enum defining sound play mode.
-		 */
-		enum PlayMode : int32_t
-		{
-			/** @brief Sound effect will loop, playback direction will change when playback reaches its end
-			 */
-			AlternatingLoop = 3,
-
-			/** @brief Sound effect will play backwards in a loop
-			 */
-			ReversLoop = 2,
-
-			/** @brief Sound effect will play normaly in loop
-			 */
-			ForwardLoop = 1,
-
-			/** @brief Sound effect will play normaly
-			 */
-			Volatile = 0,
-
-			/** @brief Sound effect will play normaly, but when stopped, it wil not stop playing until its end
-			 */
-			Protected = -1,
-
-			/** @brief Sound effect will play normaly, but when stopped, it wil not stop playing until its end
-			 */
-			Semi = -2,
-		};
-
 		/** @brief Returns current number of PCMs
 		 */
         static int16_t GetNumberOfPCMs()
         {
-            return numberOfPCMs;
+            return (numberOfPCMs - 1);
         }
         
 		/** @brief Hardware settings and Driver initialization
@@ -335,10 +387,8 @@ namespace SRL::Ponesound
 				// Load driver
 				LoadDriver(mode);
 				SRL::Core::OnVblank += SdrvVblankRq;
-
+                // Set default volumes
                 SetMasterVolume(15);
-
-				// set CD audio volume
 				CD::SetVolume(15);
 			}
 
@@ -353,17 +403,15 @@ namespace SRL::Ponesound
 			}
 		};
 
-		/** @brief Playback of sound effects & music
-		 */
 		struct Pcm
-		{		    
+		{
 			/** @brief Load PCM sound effect
 			 * @param file File name
 			 * @param bitDepth Bit depth of the sound effect
 			 * @param sampleRate Sample rate of the sound effect
 			 * @return Sound effect identifier (< 0 on fail)
 			 */
-			static int16_t LoadPcm(const char* fileName, const PCMBitDepth bitDepth, const int32_t sampleRate)
+			static int16_t LoadPcm(const char* fileName, const BitDepth bitDepth, const int32_t sampleRate)
 			{
                 if ((int32_t)scspWorkAddr > 0x7F800) return -1;
                 if (numberOfPCMs >= PCM::CTRL_MAX) return -2;
@@ -373,13 +421,13 @@ namespace SRL::Ponesound
                 if (file.Open())
                 {
                     int32_t fileSize = file.Size.Bytes;
-
-                    if (fileSize > (128 * 1024) && bitDepth == PCMBitDepth::PCM16)
+                    
+                    if (fileSize > (128 * 1024) && bitDepth == BitDepth::PCM16)
                     {
                         file.Close();
                         return -3;
                     }
-                    else if (fileSize > (64 * 1024) && bitDepth == PCMBitDepth::PCM8)
+                    else if (fileSize > (64 * 1024) && bitDepth == BitDepth::PCM8)
                     {
                         file.Close();
                         return -3;
@@ -390,35 +438,67 @@ namespace SRL::Ponesound
 
                     file.Read(fileSize, (void*)((uint32_t)scspWorkAddr + SNDRAM));
                     file.Close();
-                    
-                    m68kCommands.pcmCtrl[numberOfPCMs].hiAddrBits = (uint16_t)((uint32_t)scspWorkAddr >> 16);
-                    m68kCommands.pcmCtrl[numberOfPCMs].loAddrBits = (uint16_t)((uint32_t)scspWorkAddr & 0xFFFF);
-                    m68kCommands.pcmCtrl[numberOfPCMs].pitchWord    = ConvertBitrateToPitchWord(sampleRate);
-
-                    if (bitDepth == PCMBitDepth::PCM16)
-                    {
-                        m68kCommands.pcmCtrl[numberOfPCMs].bytesPerBlank = CalculateBytesPerBlank(sampleRate, false, PCM::SYS_REGION);
-                        m68kCommands.pcmCtrl[numberOfPCMs].playSize = (fileSize >> 1);
-                        m68kCommands.pcmCtrl[numberOfPCMs].bitDepth = PCM::TYPE_16BIT;
-                    }
-                    else if (bitDepth == PCMBitDepth::PCM8) {
-                        m68kCommands.pcmCtrl[numberOfPCMs].bytesPerBlank = CalculateBytesPerBlank(sampleRate, true, PCM::SYS_REGION);
-                        m68kCommands.pcmCtrl[numberOfPCMs].playSize = (fileSize);
-                        m68kCommands.pcmCtrl[numberOfPCMs].bitDepth = PCM::TYPE_8BIT;
-                    }
-
-                    m68kCommands.pcmCtrl[numberOfPCMs].loopType = 0;
-                    m68kCommands.pcmCtrl[numberOfPCMs].volume = 7;
-
-                    numberOfPCMs++;
-                    scspWorkAddr = (uint32_t*)((uint32_t)scspWorkAddr + fileSize);
-                    
-                    return (numberOfPCMs - 1);
+                                        
+                    return RegisterPcm(fileSize, bitDepth, sampleRate);
                 }
                 else {
                     return -4;
                 }
 			}
+			
+            /** @brief Load packed PCM sound effects
+			 * @param fileName File name (.snd)
+			 * @param sounds Array to hold sample ids
+			 * @param maxSamples Number of samples in the .snd file
+			 * @return Number of samples loaded (< 0 on fail)
+			 */            static int LoadSound(const char* fileName, int16_t* sounds, int maxSamples)
+            {
+                SRL::Cd::File file(fileName);
+                if (!file.Open()) return -1;
+
+                int32_t count = -1;
+
+                while (count < maxSamples-1)
+                {                
+                    PcmHeader header;
+                    file.Read(sizeof(PcmHeader), &header);
+
+                    uint8_t* decompressed = nullptr;
+                    char* compressed = nullptr;
+                    
+                    count++;
+                    
+                    if (header.compressedSize == 0)
+                    {
+                        // RAW PCM
+                        file.Read(header.originalSize, (void*)((uint32_t)scspWorkAddr + SNDRAM));
+                    }
+                    else
+                    {
+                        // COMPRESSED PCM
+                        compressed = new char[header.compressedSize];
+                        decompressed = new uint8_t[header.originalSize];                        
+
+                        file.Read(header.compressedSize, compressed);
+                        Lzss::Decompress((uint8_t*)compressed, (uint8_t*)decompressed, header.originalSize);
+                        
+                        slDMACopy(decompressed, (void*)((uint32_t)scspWorkAddr + SNDRAM), header.originalSize);
+                        slDMAWait();
+
+                        delete[] compressed;
+                        delete[] decompressed;
+                    }
+
+                    sounds[count] = RegisterPcm(
+                        header.originalSize,
+                        (BitDepth)header.bitDepth,
+                        header.sampleRate
+                    );
+                }
+
+                file.Close();
+                return count;
+            }
 
 			/** @brief Load 8 bit PCM sound effect
 			 * @param file File name
@@ -427,7 +507,7 @@ namespace SRL::Ponesound
 			 */
 			static int16_t Load8(const char* fileName, const int32_t sampleRate = 15360)
 			{
-			    return LoadPcm(fileName, PCMBitDepth::PCM8, sampleRate);
+			    return LoadPcm(fileName, BitDepth::PCM8, sampleRate);
 			}
 			
 			/** @brief Load 16 bit PCM sound effect
@@ -437,7 +517,7 @@ namespace SRL::Ponesound
 			 */
 			static int16_t Load16(const char* fileName, const int32_t sampleRate = 15360)
 			{
-			    return LoadPcm(fileName, PCMBitDepth::PCM16, sampleRate);
+			    return LoadPcm(fileName, BitDepth::PCM16, sampleRate);
 			}
 			
 			/** @brief Load ADX sound effect
@@ -568,7 +648,7 @@ namespace SRL::Ponesound
 			 */
             static void Play(int16_t sound,
             PlayMode mode = PlayMode::Protected,
-            uint8_t volume = 15)
+            uint8_t volume = 7) // 15?
             {
 				if (sound < 0) return;
 				m68kCommands.pcmCtrl[sound].sh2Permit = 1;
@@ -659,12 +739,7 @@ namespace SRL::Ponesound
 			}
 		};
 	};
-    
-    /** 
-     * @brief PCM BitDepth alias
-     */
-    using BitDepth = Sound::PCMBitDepth;
-    
+   
     /** 
      * @brief PCM API alias
      */

@@ -19,7 +19,7 @@ SGL_MAX_EVENTS = 1             # Number of events that can be used
 SGL_MAX_WORKS = 1             # Number of works that can be used 
 
 # include extra modules
-MODULES_EXTRA = smpc ponesound
+MODULES_EXTRA = smpc ponesound decompression
 
 # Disk name
 CD_NAME = Ponesound-SRL
