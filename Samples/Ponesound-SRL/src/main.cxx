@@ -6,32 +6,29 @@ using namespace SRL::Input;
 using namespace SRL::Ponesound;
 
 const int16_t maxSamples = 9;
-short catSnd[maxSamples] = {};
 
 int main()
 {
 	SRL::Core::Initialize(SRL::Types::HighColor::Colors::Black);
     
-    // Ponesound
-    Sound::Driver::Initialize(ADXMode::ADX2304);
-    
-    Digital port0(0);
-    
-    SRL::Debug::Print(1,3,  "Loading...");
-    Pcm::LoadSound("CAT.SND", catSnd, maxSamples); // load compressed sound sample library (.snd)
-    int16_t bumpPcm16    = Pcm::Load16("BUMP16.PCM", 15360); // explicitly specify bitrate
-    int16_t gameOverPcm8 = Pcm::Load8("GMOVR8.PCM"); // or use the default (15360)
-    int16_t adx4snd      = Pcm::LoadAdx("NBGM.ADX"); // load ADX music (large file, takes a long time to load)
+    short catSnd[maxSamples] = {};
+    int16_t volume = 15;
+    int16_t curSample = 0;
     int32_t currentTrack = 2;
     bool playCDDA = false;
     
-    int16_t volume = 15;
-    int16_t curSample = 0;
+    SRL::Debug::Print(1,3,  "Loading...");
     
+    // Ponesound
+    Sound::Driver::Initialize(ADXMode::ADX2304);    
+    Pcm::LoadSound("CAT.SND", catSnd, maxSamples);           // load compressed sound sample library (.snd)
+    int16_t bumpPcm16    = Pcm::Load16("BUMP16.PCM", 15360); // explicitly specify bitrate
+    int16_t gameOverPcm8 = Pcm::Load8("GMOVR8.PCM");         // or use the default (15360)
+    int16_t adx4snd      = Pcm::LoadAdx("NBGM.ADX");         // load ADX music (large file, takes a long time to load)
+
     SRL::Debug::Print(1,3, "NumberOfPCMs %d", Sound::GetNumberOfPCMs());
     SRL::Debug::Print(1,4, "CD Volume %d  ", volume);
     SRL::Debug::Print(1,5, "Cat sound %d     ", curSample+1);
-    
     SRL::Debug::Print(1,8,  "Controls:");
     SRL::Debug::Print(5,9,  "Start: start/stop CDDA playback");
     SRL::Debug::Print(5,10, "R/L trigger: previous/next track");
@@ -42,7 +39,8 @@ int main()
     SRL::Debug::Print(5,15, "C: - PCM playback (protected)");
     SRL::Debug::Print(5,16, "X: - ADX playback");
     SRL::Debug::Print(5,17, "Y: - ADX stop");
-    
+   
+    Digital port0(0);
 
 	while(1)
 	{
