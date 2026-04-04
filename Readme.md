@@ -27,6 +27,7 @@ using namespace SRL::Ponesound;
 ## Sound (.snd) Format
 
 The `.snd` format is a packed and LZSS-compressed container for PCM samples.  
+- #### Note: `.snd` file name must be in all caps and follow 8.3 naming.  For example, `CAT.SND`.  GFS will crash if you do not follow this requirement.
 
 Multiple `.pcm` files can be stored in a single `.snd` file, and multiple `.snd` files can be defined in a project.
 
