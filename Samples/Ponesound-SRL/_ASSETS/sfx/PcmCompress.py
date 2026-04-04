@@ -176,7 +176,7 @@ def compressLzssInFolder(folder: str, write_output: bool = False):
             header = build_lzss_header(file_path, original_size)
             out_data = header + compressed
 
-            out_path = file_path.with_suffix(".lz")
+            out_path = file_path.with_suffix(".LZ")
             out_path.write_bytes(out_data)
 
 # specifically for packing .pcm samples to .snd format
