@@ -79,7 +79,8 @@ namespace SRL::Ponesound
 	 */ 
 	class Sound final
 	{
-	private:        
+	private:     // zzz   
+	// public:        
         /**
          * @brief Masking function for extracting the least significant N bits of a value.
          * @tparam N Number of bits to extract.
@@ -173,7 +174,10 @@ namespace SRL::Ponesound
 			static constexpr auto SYS_REGION = 0;
 			static constexpr auto PAN_LEFT = 1 << 4;
 			static constexpr auto PAN_RIGHT = 0;
-		};
+			static constexpr auto BUFFERED_BLANKS = 96;
+			static constexpr auto NUM_BUF = 2; // (BUFFERED_BLANKS / 48)
+		};   
+
 
 		static constexpr auto SNDRAM = 631242752;
 		static constexpr auto SNDPRG = SNDRAM + 0x408;
@@ -311,8 +315,6 @@ namespace SRL::Ponesound
                 m68kCommands.driverAdxCoeficient1 = adxCoeficientTable[masterAdxFrequency][0];
                 m68kCommands.driverAdxCoeficient2 = adxCoeficientTable[masterAdxFrequency][1];
                 SRL::SMPC::EnableSoundCPU();
-
-                file.Close();
             }
 
 			m68kCommands.start = 0xFFFF;
@@ -424,12 +426,10 @@ namespace SRL::Ponesound
                     
                     if (fileSize > (128 * 1024) && bitDepth == BitDepth::PCM16)
                     {
-                        file.Close();
                         return -3;
                     }
                     else if (fileSize > (64 * 1024) && bitDepth == BitDepth::PCM8)
                     {
-                        file.Close();
                         return -3;
                     }
 
@@ -437,7 +437,6 @@ namespace SRL::Ponesound
                     fileSize += ((uint32_t)fileSize & 3) ? 2 : 0;
 
                     file.Read(fileSize, (void*)((uint32_t)scspWorkAddr + SNDRAM));
-                    file.Close();
                                         
                     return RegisterPcm(fileSize, bitDepth, sampleRate);
                 }
@@ -496,7 +495,6 @@ namespace SRL::Ponesound
                     );
                 }
 
-                file.Close();
                 return count;
             }
 
@@ -547,7 +545,6 @@ namespace SRL::Ponesound
 
                         if (bytesPerBlank != 768 && bytesPerBlank != 512 && bytesPerBlank != 384 && bytesPerBlank != 256 && bytesPerBlank != 192 && bytesPerBlank != 128)
                         {
-                            file.Close();
                             return -3;
                         }
                         else {
@@ -563,7 +560,6 @@ namespace SRL::Ponesound
                             bytesToLoad += ((uint32_t)bytesToLoad & 3) ? 2 : 0;
 
                             file.Read(bytesToLoad, (void*)((uint32_t)scspWorkAddr + SNDRAM));
-                            file.Close();
 
                             numberOfPCMs++;
                             scspWorkAddr = (uint32_t*)((uint32_t)scspWorkAddr + bytesToLoad);
@@ -572,7 +568,6 @@ namespace SRL::Ponesound
                         }
                     }
                     else {
-                        file.Close();
                         return -4;
                     }
                 }
@@ -657,11 +652,21 @@ namespace SRL::Ponesound
 			}
 		};
 		
-		// /** @brief CD Streamed playback of sound effects & music (future)
-		 // */
-		// struct PcmStream
-		// {
-		// };
+		/** @brief CD Streamed playback of sound effects & music (future)
+		 */
+		struct PcmStream
+		{
+            // pcm_stream_init
+            void Init(int32_t bitrate, BitDepth bit_depth) { // pal mode?
+                // need to calculate buffer_size_bytes and transfer_sectors
+                short byteRate = Sound::CalculateBytesPerBlank(bitrate, (bool)bit_depth, false);
+                
+                int32_t buffer_size_bytes = byteRate * Sound::PCM::BUFFERED_BLANKS; // "byteRate" being the bytes per blank of the music track
+                
+                int32_t segment_size = buffer_size_bytes / Sound::PCM::NUM_BUF;
+                int32_t transfer_sectors = segment_size / 2048;
+            }
+		};
 
 		/** @brief Playback of CD audio
 		 */
@@ -744,6 +749,10 @@ namespace SRL::Ponesound
      * @brief PCM API alias
      */
     using Pcm = Sound::Pcm;
+    /** 
+     * @brief PCM API alias
+     */
+    using Stream = Sound::PcmStream;
 
     /**
      * @brief CD API alias
