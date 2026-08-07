@@ -23,7 +23,13 @@ Include it in your code:
 #include <ponesound.hpp>
 using namespace SRL::Ponesound;
 ```
-
+Initialize the driver:
+> **If using SGL: after slInitSystem() - before slSynch()!!**
+> 
+> **If using other libraries: after system registers and memory is set - before first vblank!!**
+```
+Sound::Driver::Initialize(ADXMode::ADX2304);
+```
 ## Sound (.snd) Format
 
 The `.snd` format is a packed and LZSS-compressed container for PCM samples.  
